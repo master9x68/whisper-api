@@ -3,15 +3,14 @@ import whisper
 import speech_recognition as sr
 from pydub import AudioSegment
 from flask import Flask, request, jsonify
-from ilovepdf import ILovePdf
+import requests
 
 app = Flask(__name__)
 
-# Khởi tạo iLovePDF client với API key từ Environment Variables
+# Lấy API key từ Environment Variables
 PUBLIC_KEY = os.environ.get("ILOVE_PDF_PUBLIC_KEY")
 SECRET_KEY = os.environ.get("ILOVE_PDF_SECRET_KEY")
-
-ilovepdf = ILovePdf(public_key=PUBLIC_KEY, secret_key=SECRET_KEY)
+API_URL = "https://api.ilovepdf.com/v1"  # URL của iLovePDF API
 
 def extract_segments_with_whisper(input_path):
     """
@@ -83,13 +82,20 @@ def convert_to_pdf():
     file.save(input_path)
 
     try:
-        # Tạo công việc chuyển đổi sang PDF
-        task = ilovepdf.new_task('officepdf')
-        task.add_file(input_path)
-        task.execute()
-        output_path = task.download("/tmp")
+        # Gửi request đến iLovePDF API để chuyển đổi file sang PDF
+        with open(input_path, 'rb') as f:
+            response = requests.post(
+                f"{API_URL}/start/officepdf",
+                headers={"Authorization": f"Bearer {PUBLIC_KEY}"},
+                files={"file": f}
+            )
 
-        return jsonify({"message": "Conversion successful", "output_file": output_path})
+        if response.status_code == 200:
+            output_url = response.json().get('output', {}).get('url')
+            return jsonify({"message": "Conversion successful", "output_url": output_url})
+        else:
+            return jsonify({"error": "Failed to convert file", "details": response.text}), 500
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -102,18 +108,25 @@ def convert_from_pdf():
         return jsonify({"error": "No file or conversion type provided"}), 400
 
     file = request.files['file']
-    conversion_type = request.form['conversion_type']  # Loại chuyển đổi: 'pdfjpg', 'pdfword', 'pdfexcel', ...
+    conversion_type = request.form['conversion_type']  # Ví dụ: 'pdfjpg', 'pdfword', 'pdfexcel'
     input_path = os.path.join('/tmp', file.filename)
     file.save(input_path)
 
     try:
-        # Tạo công việc chuyển đổi từ PDF
-        task = ilovepdf.new_task(conversion_type)
-        task.add_file(input_path)
-        task.execute()
-        output_path = task.download("/tmp")
+        # Gửi request đến iLovePDF API để chuyển đổi từ PDF sang định dạng khác
+        with open(input_path, 'rb') as f:
+            response = requests.post(
+                f"{API_URL}/start/{conversion_type}",
+                headers={"Authorization": f"Bearer {PUBLIC_KEY}"},
+                files={"file": f}
+            )
 
-        return jsonify({"message": "Conversion successful", "output_file": output_path})
+        if response.status_code == 200:
+            output_url = response.json().get('output', {}).get('url')
+            return jsonify({"message": "Conversion successful", "output_url": output_url})
+        else:
+            return jsonify({"error": "Failed to convert file", "details": response.text}), 500
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
