@@ -86,15 +86,18 @@ def convert_to_pdf():
         with open(input_path, 'rb') as f:
             response = requests.post(
                 f"{API_URL}/start/officepdf",
-                headers={"Authorization": f"Bearer {PUBLIC_KEY}"},
+                headers={
+                    "Authorization": f"Bearer {PUBLIC_KEY}",
+                    "Accept": "application/json"
+                },
                 files={"file": f}
             )
 
         if response.status_code == 200:
-            output_url = response.json().get('output', {}).get('url')
+            output_url = response.json().get('download_url')
             return jsonify({"message": "Conversion successful", "output_url": output_url})
         else:
-            return jsonify({"error": "Failed to convert file", "details": response.text}), 500
+            return jsonify({"error": "Failed to convert file", "details": response.json()}), response.status_code
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -117,15 +120,18 @@ def convert_from_pdf():
         with open(input_path, 'rb') as f:
             response = requests.post(
                 f"{API_URL}/start/{conversion_type}",
-                headers={"Authorization": f"Bearer {PUBLIC_KEY}"},
+                headers={
+                    "Authorization": f"Bearer {PUBLIC_KEY}",
+                    "Accept": "application/json"
+                },
                 files={"file": f}
             )
 
         if response.status_code == 200:
-            output_url = response.json().get('output', {}).get('url')
+            output_url = response.json().get('download_url')
             return jsonify({"message": "Conversion successful", "output_url": output_url})
         else:
-            return jsonify({"error": "Failed to convert file", "details": response.text}), 500
+            return jsonify({"error": "Failed to convert file", "details": response.json()}), response.status_code
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
