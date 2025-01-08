@@ -7,19 +7,25 @@ from ilovepdf import ILovePdf
 
 app = Flask(__name__)
 
-# Khởi tạo iLovePDF client với API key
-PUBLIC_KEY = "project_public_03191c6cc72b878a89385bad4e943aa2_K1FG-c7ad4007513bf030d6b769f8f603bdcc"
-SECRET_KEY = "secret_key_6626677fb3984296120d9093d4146a56_FCsq0edadaf9453bb6a3ba2be2209c311d3ef"
+# Khởi tạo iLovePDF client với API key từ Environment Variables
+PUBLIC_KEY = os.environ.get("ILOVE_PDF_PUBLIC_KEY")
+SECRET_KEY = os.environ.get("ILOVE_PDF_SECRET_KEY")
 
 ilovepdf = ILovePdf(public_key=PUBLIC_KEY, secret_key=SECRET_KEY)
 
 def extract_segments_with_whisper(input_path):
+    """
+    Sử dụng Whisper để chuyển đổi âm thanh thành các đoạn văn bản có kèm thời gian.
+    """
     model = whisper.load_model("base")
     result = model.transcribe(input_path, language="vi")
     segments = result['segments']
     return segments
 
 def refine_segment_with_speech_recognition(audio_path, start_time, end_time):
+    """
+    Cải thiện chất lượng nhận diện bằng Google Speech Recognition.
+    """
     recognizer = sr.Recognizer()
     audio = AudioSegment.from_file(audio_path)
     segment_audio = audio[start_time * 1000:end_time * 1000]
@@ -41,6 +47,9 @@ def refine_segment_with_speech_recognition(audio_path, start_time, end_time):
 
 @app.route('/process', methods=['POST'])
 def process_file():
+    """
+    Xử lý file audio/video, trích xuất văn bản bằng Whisper và cải thiện kết quả bằng Google Speech Recognition.
+    """
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
@@ -109,4 +118,4 @@ def convert_from_pdf():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', port=8000)
